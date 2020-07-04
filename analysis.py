@@ -8,8 +8,6 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import LinearLocator, FormatStrFormatter
 
 
-
-
 data_type = {"CLs": 0, "H0_DATA": 1, "H1_DATA": 2, "H0_H1": 3, "H1_H0": 4}
 
 names = {"CLs": r'$CL_s$', "H0_DATA": r'$\chi^2_{H_0}(DATA)$',
@@ -18,6 +16,7 @@ names = {"CLs": r'$CL_s$', "H0_DATA": r'$\chi^2_{H_0}(DATA)$',
         "H1_H0": r'$\chi^2_{H_1}(H_0)$'}
 
 parser = ArgumentParser()
+parser.add_argument('-c', '--contour', type=float, help='plot contour of CLs')
 parser.add_argument('-o', '--output', help='path/to/save/plot')
 parser.add_argument('-p', '--pathes', nargs='*', help='path/to/hdf5')
 parser.add_argument('-t', '--types', nargs='*', help='what to plot')
@@ -33,9 +32,10 @@ args = parser.parse_args()
 class DATA():
     k = 0
 
-    def __init__(self, CLs_map, grid):
+    def __init__(self, CLs_map, grid, success):
         self.CLs = CLs_map
         self.grid = grid
+        self.success = np.array((success + 1) % 2, dtype=bool)
         self.axis = dict.fromkeys([0, 1])
         self.axisInd = {0: [None, None], 1: [None, None]}
         self.prepared = False
@@ -72,12 +72,14 @@ class DATA():
 
     def _prepareData(self, name):
         xInd, yInd = self.axisInd.values()
-        CLs = self.CLs
-        print('__', xInd, yInd)
-        if name != 'CLs' and args.log:
-            data = np.log10(CLs[yInd[0]:yInd[1], xInd[0]:xInd[1], data_type[name]])
+        CLs = self.CLs[yInd[0]:yInd[1], xInd[0]:xInd[1]]
+        if name != 'CLs':
+            k = data_type[name]
+            data = np.ma.array(CLs[:,:, k], mask=self.success[:,:, k - 2])
+            if args.log:
+                data = np.log10(data)
         else:
-            data = (CLs[yInd[0]:yInd[1], xInd[0]:xInd[1], data_type[name]])
+            data = (CLs[:,:, data_type[name]])
         return data
 
     def plot2D(self, name, title):
@@ -87,6 +89,8 @@ class DATA():
         xx, yy = np.meshgrid(x, y)
         data = self._prepareData(name)
         cs = plt.contourf(xx, yy, data, cmap=cm.coolwarm)
+        if args.contour:
+            plt.contour(xx, yy, self._prepareData("CLs"), 1 - args.contour)
         plt.xlabel(r"$\sin^2 2\theta_{14}$")
         plt.ylabel(r"$\Delta m^2_{41}$")
         plt.xscale('log')
@@ -142,7 +146,7 @@ def main():
             if filename.endswith('.hdf5') and "CLs" in filename:
                 key = path.split('/')[-1]
                 with h5py.File(path+'/'+filename, 'r') as f:
-                    DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:])
+                    DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:], f['success'][:])
    
     print(DATA_dict)
 

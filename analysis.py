@@ -85,7 +85,7 @@ class DATA():
             else:
                 data.append(np.ma.array(CLs[:,:, 2 + k],
                     mask=success[:,:,k]))
-        self.data = np.array(data)
+        self.data = np.ma.array(data)
 
     def plot2D(self, name, title):
         x, y = self.axis.values()

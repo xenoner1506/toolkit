@@ -32,18 +32,19 @@ args = parser.parse_args()
 class DATA():
     k = 0
 
-    def __init__(self, CLs_map, grid, success):
+    def __init__(self, CLs_map, grid, success, contour=None):
         self.CLs = CLs_map
         self.grid = grid
         self.success = np.array((success + 1) % 2, dtype=bool)
+        self.contour = contour
         self.axis = dict.fromkeys([0, 1])
         self.axisInd = {0: [None, None], 1: [None, None]}
         self.prepared = False
 
     def _prepare(self):
-        print('in _prepare')
         for i in range(2):
             self.makeAxis(i)
+        self.prepareData()
         self.prepared = True
 
     def makeAxis(self, i):
@@ -52,7 +53,6 @@ class DATA():
                 np.log10(grid[3 * i + 1]), int(grid[3 * i + 2]))
         for AxisLimits, j in zip([args.xl, args.yl], [0, 1]):
             if j == i and AxisLimits:
-                print('her')
                 xl = np.log10(AxisLimits)
                 xInd = [np.where(Axis >= xl[0])[0].min(), 
                         np.where(Axis <= xl[1])[0].max() + 1]
@@ -70,27 +70,35 @@ class DATA():
         plt.savefig(path, dpi=450)
         print(path+" saved")
 
-    def _prepareData(self, name):
+    def prepareData(self):
+        data = []
         xInd, yInd = self.axisInd.values()
         CLs = self.CLs[yInd[0]:yInd[1], xInd[0]:xInd[1]]
-        if name != 'CLs':
-            k = data_type[name]
-            data = np.ma.array(CLs[:,:, k], mask=self.success[:,:, k - 2])
+        success = self.success[yInd[0]:yInd[1], xInd[0]:xInd[1]]
+        if args.contour:
+            self.contour = self.contour[yInd[0]:yInd[1], xInd[0]:xInd[1]]
+        data.append(np.ma.array(CLs[:,:,0], mask=False))
+        for k in range(3):
             if args.log:
-                data = np.log10(data)
-        else:
-            data = (CLs[:,:, data_type[name]])
-        return data
+                data.append(np.log10(np.ma.array(CLs[:,:, 2 + k],
+                    mask=success[:,:,k])))
+            else:
+                data.append(np.ma.array(CLs[:,:, 2 + k],
+                    mask=success[:,:,k]))
+        self.data = np.array(data)
 
     def plot2D(self, name, title):
         x, y = self.axis.values()
         fig = plt.figure()
         x, y = np.power(10, [x, y])
         xx, yy = np.meshgrid(x, y)
-        data = self._prepareData(name)
-        cs = plt.contourf(xx, yy, data, cmap=cm.coolwarm)
+        if name == "CLs":
+            cs = plt.contourf(xx, yy, self.data[0], cmap=cm.coolwarm)
+        else:
+            cs = plt.contourf(xx, yy, self.data[data_type[name] - 2],
+                    cmap=cm.coolwarm)
         if args.contour:
-            plt.contour(xx, yy, self._prepareData("CLs"), 1 - args.contour)
+            plt.contour(xx, yy, self.contour, 1 - args.contour)
         plt.xlabel(r"$\sin^2 2\theta_{14}$")
         plt.ylabel(r"$\Delta m^2_{41}$")
         plt.xscale('log')
@@ -104,9 +112,12 @@ class DATA():
         fig = plt.figure()
         ax = fig.gca(projection='3d')
         xx, yy = np.meshgrid(x, y)
-        data = self._prepareData(name)
-        surf = ax.plot_surface(xx, yy, data, cmap=cm.coolwarm,
-                           linewidth=0, antialiased=False)
+        if name == "CLs":
+            surf = ax.plot_surface(xx, yy, self.data[0], 
+                    cmap=cm.coolwarm, linewidth=0, antialiased=False)
+        else:
+            surf = ax.plot_surface(xx, yy, self.data[data_type[name] - 2],
+                    cmap=cm.coolwarm, linewidth=0, antialiased=False)
         ax.zaxis.set_major_locator(LinearLocator(10))
         ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
         ax.set_title(r"3D "+title+names[name])
@@ -146,13 +157,17 @@ def main():
             if filename.endswith('.hdf5') and "CLs" in filename:
                 key = path.split('/')[-1]
                 with h5py.File(path+'/'+filename, 'r') as f:
-                    DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:], f['success'][:])
+                    DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:],
+                            f['success'][:], f['CL\'s'][:][:,:,0])
    
     print(DATA_dict)
 
     if args.df:
         key0, key1 = DATA_dict.keys()
-        DATA_df = DATA(DATA_dict[key0].CLs - DATA_dict[key1].CLs, DATA_dict[key0].grid)
+        data = DATA_dict[key0].CLs - DATA_dict[key1].CLs
+        success = ((DATA_dict[key0].success.astype(int) + 1) % 2 +
+                (DATA_dict[key0].success.astype(int) + 1) % 2) / 2
+        DATA_df = DATA(data, DATA_dict[key0].grid, success, DATA_dict[key0].contour)
         for name in types:
             DATA_df.plotter(name, "Difference map of ")
     else:

@@ -5,22 +5,22 @@ from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
 
-parser = ArgumentParser()
-parser.add_argument('-c', '--contour', type=float, help='plot contour of CLs')
-parser.add_argument('-o', '--output', help='path/to/save/plot')
-parser.add_argument('-p', '--paths', nargs='*', help='path/to/hdf5')
-parser.add_argument('-t', '--types', nargs='*', help='what to plot')
-parser.add_argument('-l', '--log', action='store_true', help='logarithmic scale')
-parser.add_argument('-s', '--show', action='store_true', help='show figure')
-parser.add_argument('--D2', action='store_true', help='make 2D plots')
-parser.add_argument('--D3', action='store_true', help='make 3D plots')
-parser.add_argument('--df', action='store_true', help='difference between two datas')
-parser.add_argument('--xl', type=float, nargs=2, help='xlim for 2D/3d plot')
-parser.add_argument('--yl', type=float, nargs=2, help='ylim for 2D/3d plot')
-args = parser.parse_args()
-
 
 def main():
+    parser = ArgumentParser()
+    parser.add_argument('-c', '--contour', type=float, help='plot contour of CLs')
+    parser.add_argument('-o', '--output', help='path/to/save/plot')
+    parser.add_argument('-p', '--paths', nargs='*', help='path/to/hdf5')
+    parser.add_argument('-t', '--types', nargs='*', help='what to plot')
+    parser.add_argument('-l', '--log', action='store_true', help='logarithmic scale')
+    parser.add_argument('-s', '--show', action='store_true', help='show figure')
+    parser.add_argument('--D2', action='store_true', help='make 2D plots')
+    parser.add_argument('--D3', action='store_true', help='make 3D plots')
+    parser.add_argument('--df', action='store_true', help='difference between two datas')
+    parser.add_argument('--xl', type=float, nargs=2, help='xlim for 2D/3d plot')
+    parser.add_argument('--yl', type=float, nargs=2, help='ylim for 2D/3d plot')
+    args = parser.parse_args()
+
     DATA_dict = dict()
     DATA.args = args
     paths = args.paths
@@ -31,12 +31,10 @@ def main():
         types = ["CLs", "H1_DATA", "H0_H1", "H1_H0"]
     
     for path in args.paths:
-        for filename in os.listdir(path):
-            if filename.endswith('.hdf5') and "CLs" in filename:
-                key = path.split('/')[-1]
-                with h5py.File(path+'/'+filename, 'r') as f:
-                    DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:],
-                            f['success'][:], f['CL\'s'][:][:,:,0])
+        key = os.path.basename(path)
+        with h5py.File(path, 'r') as f:
+            DATA_dict[key] = DATA(f['CL\'s'][:], f['grid'][:], f['success'][:],
+                    f['CL\'s'][:][:,:,0])
    
     print(DATA_dict)
 

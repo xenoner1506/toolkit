@@ -39,7 +39,6 @@ class DATA():
                 Axis = Axis[Axis <= xl[1]]
                 self.axisInd[i] = xInd
         self.axis[i] = Axis.copy()
-        print(self.axisInd, i)
 
     @classmethod
     def saver(cls, ndim, name):
@@ -76,7 +75,7 @@ class DATA():
         if name == "CLs":
             cs = plt.contourf(xx, yy, self.data[0], cmap=cm.coolwarm)
         else:
-            cs = plt.contourf(xx, yy, self.data[parDict.types[name] - 2],
+            cs = plt.contourf(xx, yy, self.data[parDict.types[name] - 1],
                     cmap=cm.coolwarm)
         if self.args.contour:
             plt.contour(xx, yy, self.contour, 1 - self.args.contour)
@@ -97,7 +96,7 @@ class DATA():
             surf = ax.plot_surface(xx, yy, self.data[0], 
                     cmap=cm.coolwarm, linewidth=0, antialiased=False)
         else:
-            surf = ax.plot_surface(xx, yy, self.data[parDict.types[name] - 2],
+            surf = ax.plot_surface(xx, yy, self.data[parDict.types[name] - 1],
                     cmap=cm.coolwarm, linewidth=0, antialiased=False)
         ax.zaxis.set_major_locator(LinearLocator(10))
         ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
@@ -123,3 +122,4 @@ class DATA():
             if self.args.output:
                 self.saver(3, name)
  
+
